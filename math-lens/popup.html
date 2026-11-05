@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="popup.css"><title>Math Lens</title></head>
+<body><header><span class="logo">∑</span><div><h1>Math Lens</h1><p>Разбор задач по изображению</p></div></header>
+<main>
+<p class="hint">AI: OrcaRouter</p>
+<div id="cloud"><label for="apiKey">API-ключ OrcaRouter</label><input id="apiKey" type="password" placeholder="Вставь новый ключ" autocomplete="off"><p class="hint">При разборе изображение уйдёт в OrcaRouter. Ключ хранится только в сеансе браузера. Тариф и доступность vision зависят от провайдера.</p></div>
+<label for="model">Модель с поддержкой изображений</label><input id="model" list="modelSuggestions" value="z-ai/glm-5.3-flash-free" spellcheck="false">
+<datalist id="modelSuggestions"><option value="z-ai/glm-5.3-flash-free"></option><option value="deepseek/deepseek-v4.1-flash-free"></option></datalist>
+<label for="language">Язык объяснения</label><select id="language"><option value="Russian">Русский</option><option value="Romanian">Română</option><option value="English">English</option></select>
+<button id="start">▶ Start — разобрать и выбрать ответ</button><p class="hint">Start захватит задание, отправит изображение в OrcaRouter и отметит предложенный ответ. Отправка формы и следующий вопрос — вручную.</p>
+<button id="capture">1. Захватить задание</button>
+<p class="hint">Задание и все варианты должны быть видны целиком. Захватывается только их область, без имени и cookie.</p>
+<img id="preview" alt="Предпросмотр области задания" hidden>
+<button id="solve" disabled>2. Разобрать с AI</button>
+<p id="status" role="status" aria-live="polite">Открой страницу с заданием.</p>
+<pre id="answer"></pre>
+<details><summary>Настройка и приватность</summary><p>Введи ключ OrcaRouter, выбери модель, захвати задание и проверь снимок. Отправка изображения в облако происходит только по кнопке. Держи окно открытым до получения ответа.</p><p>Ключ хранится в сеансе браузера. Бесплатность и поддержка изображений выбранными моделями не подтверждены. Проверяй рассуждение AI.</p></details>
+</main><script type="module" src="popup.js"></script></body></html>
