@@ -1,4 +1,4 @@
-# Math Lens 1.8 — Groq Qwen
+# Math Lens 1.8.2 — Groq Qwen
 
 English-language Chrome extension using **Groq only**, with model **qwen/qwen3.8-27b**. No local model installation is required.
 
@@ -32,4 +32,10 @@ Your key is stored in `chrome.storage.session` and sent only to Groq in the Auth
 
 Targets the top-level DOM selectors `#question-text`, `#question-answers`, `.answer-container`, and `.answer-index`. Cross-origin iframes and exercises larger than the viewport are unsupported. Uses displayed answer letters, not filenames.
 
-JavaScript syntax and 11 unit tests cover cropping, explicit answers, Groq settings, streaming, truncation, JSON fallback, and navigation waiting/cancellation. Chrome automation and authenticated Groq calls have not been live-tested in this environment. AI can misread notation or give incorrect answers.
+JavaScript syntax and 16 unit tests cover cropping, explicit answers, Groq settings, streaming, truncation, JSON fallback, and navigation waiting/cancellation. Chrome automation and authenticated Groq calls have not been live-tested in this environment. AI can misread notation or give incorrect answers.
+
+## Question identity fix (1.8.1)
+
+Capture, selection, and Next now share one page reader and a stable fingerprint. It compares the question number, question image sources, and explicit displayed-letter-to-image pairs sorted by letter. Object property order and harmless DOM reordering no longer affect identity; URL query parameters are sorted without dropping any values. Image `src` is used if `currentSrc` is empty. Actual question-image or answer-mapping changes still stop selection, with a more specific message. New page-reader regression tests reproduce harmless changes and verify that real changes remain blocked. This addresses false mismatch paths found in the source; the exact trigger on the user's live page has not been confirmed.
+
+Version 1.8.2 adds a large AI SUGGESTED ANSWER letter above the explanation. The badge is cleared for each new capture/request and set only after a completed model response; ambiguous replies show ?. Additional tests verify Next refuses changed selections and does not submit the final recognized question.

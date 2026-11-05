@@ -1,3 +1,4 @@
+import {pageOperation} from './page.js';
 import {waitForNextQuestion} from './automation.js';
 import {completionBody, readCompletion} from './completion.js';
 import {PROVIDERS, getProvider} from './providers.js';
@@ -30,33 +31,12 @@ const settingsReady=Promise.all([
   $('language').value=saved.englishDefaultApplied ? (saved.language || 'English') : 'English';
   if(!saved.englishDefaultApplied) await chrome.storage.local.set({language:'English',englishDefaultApplied:true});
 }).catch(()=>status('Could not load settings.'));
-function inspectQuestion() {
-  const question = document.querySelector('#question-text');
-  const answers = document.querySelector('#question-answers');
-  if (!question || !answers) throw new Error('Could not find #question-text and #question-answers. Open a supported question page.');
-  const images = [...question.querySelectorAll('img'), ...answers.querySelectorAll('img')];
-  if (!images.length || images.some(img => !img.complete || !img.naturalWidth)) throw new Error('Wait for all question images to load.');
-  const elements = [...images, ...answers.querySelectorAll('.answer-index')];
-  const rects = elements.map(el => el.getBoundingClientRect());
-  if(rects.some(r => r.width <= 0 || r.height <= 0)) throw new Error('Some question elements are hidden.');
-  const options = [...answers.querySelectorAll('.answer-container')].map(el => ({
-    label: el.querySelector('.answer-index')?.textContent.trim(),
-    image: el.querySelector('img')?.currentSrc
-  }));
-  if (!options.length || options.some(o => !o.label || !o.image)) throw new Error('Could not read the answer choices.');
-  return {
-    rect: {left:Math.min(...rects.map(r=>r.left)),top:Math.min(...rects.map(r=>r.top)),right:Math.max(...rects.map(r=>r.right)),bottom:Math.max(...rects.map(r=>r.bottom))},
-    viewport:{width:innerWidth,height:innerHeight},
-    number:document.querySelector('#questionindex')?.textContent.trim() || '',
-    options,
-    signature:JSON.stringify(images.map(i=>i.currentSrc))
-  };
-}
 async function inspect(tabId) {
-  const results = await chrome.scripting.executeScript({target:{tabId},func:inspectQuestion});
+  const results = await chrome.scripting.executeScript({target:{tabId},func:pageOperation,args:['inspect']});
   return results[0].result;
 }
 async function captureQuestion(expectedTabId=null) {
+  $('answerBadge').textContent='—';
   image=null;metadata=null;$('solve').disabled=true;$('preview').hidden=true;$('answer').textContent='';
   $('capture').disabled=true;
   try {
@@ -90,6 +70,7 @@ async function solveQuestion(autoSelect=false) {
   const key=$('apiKey').value.trim();
   if(!model) {status('Enter a vision model name.');return;}
   if(!key) {status(`Enter your ${provider.name} API key.`);return;}
+  $('answerBadge').textContent='—';
   const fast=$('fast').checked;
   const started=performance.now();
   activeRequest=new AbortController();
@@ -123,11 +104,12 @@ async function solveQuestion(autoSelect=false) {
     if(!text) throw new Error('Empty response. Check whether the model supports images.');
     if(stopRequested) return false;
     $('answer').textContent=text;
+    $('answerBadge').textContent=answerLetter(text,metadata.options.map(o=>o.label)) || '?';
     $('explanation').open=true;
     if(autoSelect) {
       const letter=answerLetter(text,metadata.options.map(o=>o.label));
       if(!letter) throw new Error('The explanation has no unambiguous final answer letter. Select an answer manually.');
-      const results=await chrome.scripting.executeScript({target:{tabId:metadata.tabId},func:selectDisplayedAnswer,args:[metadata,letter]});
+      const results=await chrome.scripting.executeScript({target:{tabId:metadata.tabId},func:pageOperation,args:['select',metadata,letter]});
       const result=results[0]?.result;
       if(!result?.ok) throw new Error(result?.error || 'Could not confirm the selection.');
       status(`Selected ${letter}. Check the answer; move to the next question manually.`);
@@ -140,24 +122,6 @@ async function solveQuestion(autoSelect=false) {
   } finally {clearTimeout(requestTimeout);activeRequest=null;clearInterval(progress);$('solve').disabled=busy || !image;$('capture').disabled=busy;}
 }
 
-function selectDisplayedAnswer(expected,letter) {
-  if(location.href!==expected.url) return {ok:false,error:'The page URL changed. No answer was selected.'};
-  const question=document.querySelector('#question-text'),answers=document.querySelector('#question-answers');
-  if(!question || !answers) return {ok:false,error:'The question is no longer available.'};
-  const number=document.querySelector('#questionindex')?.textContent.trim() || '';
-  const images=[...question.querySelectorAll('img'),...answers.querySelectorAll('img')];
-  const signature=JSON.stringify(images.map(i=>i.currentSrc));
-  const options=[...answers.querySelectorAll('.answer-container')].map(el=>({label:el.querySelector('.answer-index')?.textContent.trim(),image:el.querySelector('img')?.currentSrc}));
-  if(number!==expected.number || signature!==expected.signature || JSON.stringify(options)!==JSON.stringify(expected.options)) return {ok:false,error:'The question or choice order changed. No answer was selected.'};
-  const matches=[...answers.querySelectorAll('.answer-index')].filter(el=>el.textContent.trim()===letter);
-  if(matches.length!==1) return {ok:false,error:'Could not find a unique matching choice.'};
-  const option=matches[0];
-  option.click();
-  const selected=[...answers.querySelectorAll('.answer-index.answer-selected')];
-  const hidden=document.getElementById('hdnrealCevap');
-  if(selected.length!==1 || selected[0]!==option || (hidden && hidden.value!==letter)) return {ok:false,error:'The site did not confirm the selection. Check manually.'};
-  return {ok:true};
-}
 let busy=false;
 async function run(action) {
   if(busy) return;
@@ -168,25 +132,6 @@ async function run(action) {
 }
 $('capture').addEventListener('click',()=>run(captureQuestion));
 $('solve').addEventListener('click',()=>run(()=>solveQuestion(false)));
-function advanceQuestion(expected) {
-  if(location.href!==expected.url) return {error:'The page URL changed. Auto mode stopped.'};
-  const question=document.querySelector('#question-text'),answers=document.querySelector('#question-answers');
-  if(!question || !answers) return {error:'Question not found. Auto mode stopped.'};
-  const number=document.querySelector('#questionindex')?.textContent.trim() || '';
-  const signature=JSON.stringify([...question.querySelectorAll('img'),...answers.querySelectorAll('img')].map(i=>i.currentSrc));
-  const options=[...answers.querySelectorAll('.answer-container')].map(el=>({label:el.querySelector('.answer-index')?.textContent.trim(),image:el.querySelector('img')?.currentSrc}));
-  if(number!==expected.number || signature!==expected.signature || JSON.stringify(options)!==JSON.stringify(expected.options)) return {error:'The question changed before advancing. Auto mode stopped.'};
-  const selected=answers.querySelectorAll('.answer-index.answer-selected');
-  if(selected.length!==1 || selected[0].textContent.trim()!==expected.selectedLetter) return {error:'The selection changed. Auto mode stopped.'};
-  const count=document.querySelectorAll('input[type="hidden"][id^="answer"]').length;
-  if(count>0 && Number(number)>=count) return {last:true};
-  const next=document.getElementById('nextquestion');
-  if(!next || next.disabled) return {error:'Next button unavailable. Auto mode stopped.'};
-  const label=(next.value || next.textContent || '').trim();
-  if(/finish|submit|final|termin|înche|inche/i.test(label)) return {last:true};
-  next.click();
-  return {advanced:true};
-}
 $('stop').addEventListener('click',()=>{
   stopRequested=true;activeRequest?.abort();
   status('Stopping. A Next request already sent to the site cannot be undone.');
@@ -204,7 +149,7 @@ $('start').addEventListener('click',()=>run(async()=>{
     completed++;
     if(stopRequested) break;
     const expected={...metadata,selectedLetter:answerLetter($('answer').textContent,metadata.options.map(o=>o.label))};
-    const results=await chrome.scripting.executeScript({target:{tabId:metadata.tabId},func:advanceQuestion,args:[expected]});
+    const results=await chrome.scripting.executeScript({target:{tabId:metadata.tabId},func:pageOperation,args:['next',expected]});
     const result=results[0]?.result;
     if(result?.last) {status(`Last question selected. Final submission is manual. Completed this run: ${completed}.`);return;}
     if(!result?.advanced) throw new Error(result?.error || 'Could not advance. Auto mode stopped.');

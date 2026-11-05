@@ -1,4 +1,5 @@
 export function questionChanged(before,after) {
+  if(before.fingerprint && after?.fingerprint) return before.fingerprint!==after.fingerprint;
   return !!after && (before.number!==after.number || before.signature!==after.signature || JSON.stringify(before.options)!==JSON.stringify(after.options));
 }
 export async function waitForNextQuestion(inspect,before,{stopped=()=>false,timeout=30000,pause=()=>new Promise(r=>setTimeout(r,350)),now=()=>Date.now()}={}) {
