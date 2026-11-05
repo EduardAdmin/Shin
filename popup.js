@@ -1,3 +1,4 @@
+import {waitForNextQuestion} from './automation.js';
 import {completionBody, readCompletion} from './completion.js';
 import {PROVIDERS, getProvider} from './providers.js';
 import {answerLetter} from './answer.js';
@@ -5,6 +6,7 @@ import {cropBounds} from './geometry.js';
 const $ = id => document.getElementById(id);
 const status = text => { $('status').textContent = text; };
 let image, metadata;
+let stopRequested=false,activeRequest=null;
 let activeProvider='orca';
 const providerModels={};
 const sessionKeys={};
@@ -70,12 +72,13 @@ async function inspect(tabId) {
   const results = await chrome.scripting.executeScript({target:{tabId},func:inspectQuestion});
   return results[0].result;
 }
-async function captureQuestion() {
+async function captureQuestion(expectedTabId=null) {
   image=null;metadata=null;$('solve').disabled=true;$('preview').hidden=true;$('answer').textContent='';
   $('capture').disabled=true;
   try {
     const [tab]=await chrome.tabs.query({active:true,currentWindow:true});
     if(!tab?.id || !/^https?:/.test(tab.url || '')) throw new Error('Open a regular HTTP/HTTPS question page.');
+    if(expectedTabId!==null && tab.id!==expectedTabId) throw new Error('The active tab changed. Auto mode stopped.');
     const before=await inspect(tab.id);
     const screenshot=await chrome.tabs.captureVisibleTab(tab.windowId,{format:'png'});
     const after=await inspect(tab.id);
@@ -92,7 +95,7 @@ async function captureQuestion() {
     status(`Question ${metadata.number}: review the preview before sending it to the selected provider.`);
     return true;
   } catch(e) { status(e.message); return false; }
-  finally { $('capture').disabled=false; }
+  finally { $('capture').disabled=busy; }
 }
 async function solveQuestion(autoSelect=false) {
   if(!image || !metadata) return;
@@ -105,6 +108,8 @@ async function solveQuestion(autoSelect=false) {
   if(!key) {status(`Enter your ${provider.name} API key.`);return;}
   const fast=$('fast').checked,lowReasoning=$('lowReasoning').checked;
   const started=performance.now();
+  activeRequest=new AbortController();
+  const requestTimeout=setTimeout(()=>activeRequest?.abort(new DOMException('Request timed out','TimeoutError')),240000);
   const progress=setInterval(()=>status(`Waiting for ${provider.name} · ${Math.round((performance.now()-started)/1000)}s · ${$('answer').textContent?'receiving explanation':'no answer text yet'}`),1000);
   $('solve').disabled=true;$('capture').disabled=true;$('answer').textContent='';
   status(`Sending the question to ${provider.name}. Keep this popup open.`);
@@ -118,7 +123,7 @@ async function solveQuestion(autoSelect=false) {
     const messages=[{role:'system',content:system},{role:'user',content:[{type:'text',text:prompt},{type:'image_url',image_url:{url:image}}]}];
     const headers={'Content-Type':'application/json',Authorization:`Bearer ${key}`};
     const response=await fetch(provider.endpoint,{
-      method:'POST',headers,signal:AbortSignal.timeout(240000),
+      method:'POST',headers,signal:activeRequest.signal,
       body:JSON.stringify(completionBody({model,messages,fast,lowReasoning}))
     });
     if(!response.ok) {
@@ -132,6 +137,7 @@ async function solveQuestion(autoSelect=false) {
     if(finishReason==='length') throw new Error('The output limit was reached. No answer selected. Disable Fast mode or try Low reasoning effort if supported.');
     if(autoSelect && finishReason!=='stop') throw new Error('The provider did not confirm a complete answer. No answer selected.');
     if(!text) throw new Error('Empty response. Check whether the model supports images.');
+    if(stopRequested) return false;
     $('answer').textContent=text;
     $('explanation').open=true;
     if(autoSelect) {
@@ -142,9 +148,12 @@ async function solveQuestion(autoSelect=false) {
       if(!result?.ok) throw new Error(result?.error || 'Could not confirm the selection.');
       status(`Selected ${letter}. Check the answer; move to the next question manually.`);
     } else status('Explanation ready. Check the calculations and answer letter.');
+    return true;
   } catch(e) {
+    if(stopRequested) {status('Stopped.');return false;}
     status(e.name==='TimeoutError'?'The request timed out after 4 minutes. Try another vision model.':e instanceof TypeError?`Cannot reach ${provider.name}. Check your network, CORS, and API availability.`:e.message);
-  } finally {clearInterval(progress);$('solve').disabled=!image;$('capture').disabled=false;}
+    return false;
+  } finally {clearTimeout(requestTimeout);activeRequest=null;clearInterval(progress);$('solve').disabled=busy || !image;$('capture').disabled=busy;}
 }
 
 function selectDisplayedAnswer(expected,letter) {
@@ -168,18 +177,56 @@ function selectDisplayedAnswer(expected,letter) {
 let busy=false;
 async function run(action) {
   if(busy) return;
-  busy=true;$('provider').disabled=true;$('start').disabled=true;$('capture').disabled=true;$('solve').disabled=true;
+  busy=true;stopRequested=false;$('stop').disabled=false;$('provider').disabled=true;$('start').disabled=true;$('capture').disabled=true;$('solve').disabled=true;
   try { await action(); }
   catch(e) { status(e.message); }
-  finally { busy=false;$('provider').disabled=false;$('start').disabled=false;$('capture').disabled=false;$('solve').disabled=!image; }
+  finally { busy=false;$('stop').disabled=true;$('provider').disabled=false;$('start').disabled=false;$('capture').disabled=false;$('solve').disabled=!image; }
 }
 $('capture').addEventListener('click',()=>run(captureQuestion));
 $('solve').addEventListener('click',()=>run(()=>solveQuestion(false)));
+function advanceQuestion(expected) {
+  if(location.href!==expected.url) return {error:'The page URL changed. Auto mode stopped.'};
+  const question=document.querySelector('#question-text'),answers=document.querySelector('#question-answers');
+  if(!question || !answers) return {error:'Question not found. Auto mode stopped.'};
+  const number=document.querySelector('#questionindex')?.textContent.trim() || '';
+  const signature=JSON.stringify([...question.querySelectorAll('img'),...answers.querySelectorAll('img')].map(i=>i.currentSrc));
+  const options=[...answers.querySelectorAll('.answer-container')].map(el=>({label:el.querySelector('.answer-index')?.textContent.trim(),image:el.querySelector('img')?.currentSrc}));
+  if(number!==expected.number || signature!==expected.signature || JSON.stringify(options)!==JSON.stringify(expected.options)) return {error:'The question changed before advancing. Auto mode stopped.'};
+  const selected=answers.querySelectorAll('.answer-index.answer-selected');
+  if(selected.length!==1 || selected[0].textContent.trim()!==expected.selectedLetter) return {error:'The selection changed. Auto mode stopped.'};
+  const count=document.querySelectorAll('input[type="hidden"][id^="answer"]').length;
+  if(count>0 && Number(number)>=count) return {last:true};
+  const next=document.getElementById('nextquestion');
+  if(!next || next.disabled) return {error:'Next button unavailable. Auto mode stopped.'};
+  const label=(next.value || next.textContent || '').trim();
+  if(/finish|submit|final|termin|înche|inche/i.test(label)) return {last:true};
+  next.click();
+  return {advanced:true};
+}
+$('stop').addEventListener('click',()=>{
+  stopRequested=true;activeRequest?.abort();
+  status('Stopping. A Next request already sent to the site cannot be undone.');
+});
 $('start').addEventListener('click',()=>run(async()=>{
   await settingsReady;
   if(!$('apiKey').value.trim() || !$('model').value.trim()) {status('Enter an API key and model first.');return;}
-  if(await captureQuestion()) {
+  let completed=0,runTabId=null;
+  while(!stopRequested) {
+    if(!await captureQuestion(runTabId)) return;
+    runTabId=metadata.tabId;
+    if(stopRequested) break;
     $('capture').disabled=true;$('solve').disabled=true;
-    await solveQuestion(true);
+    if(!await solveQuestion(true)) return;
+    completed++;
+    if(stopRequested) break;
+    const expected={...metadata,selectedLetter:answerLetter($('answer').textContent,metadata.options.map(o=>o.label))};
+    const results=await chrome.scripting.executeScript({target:{tabId:metadata.tabId},func:advanceQuestion,args:[expected]});
+    const result=results[0]?.result;
+    if(result?.last) {status(`Last question selected. Final submission is manual. Completed this run: ${completed}.`);return;}
+    if(!result?.advanced) throw new Error(result?.error || 'Could not advance. Auto mode stopped.');
+    status(`Completed ${completed} question(s). Waiting for the next question…`);
+    const next=await waitForNextQuestion(()=>inspect(metadata.tabId),metadata,{stopped:()=>stopRequested});
+    if(!next) break;
   }
+  status(`Stopped. Completed this run: ${completed}.`);
 }));

@@ -1,4 +1,4 @@
-# Math Lens 1.6 — OrcaRouter + TokenHarbor
+# Math Lens 1.7 — OrcaRouter + TokenHarbor
 
 An English-language Chrome extension for image-based math exercises. No local model installation is required.
 
@@ -21,7 +21,9 @@ These model IDs were supplied by the user. Availability, free access, and image 
 
 Open an exercise where AI assistance is allowed. Keep the entire question, choice images, and displayed letters visible; zoom out if needed. Close overlays covering the question.
 
-Click **Start — analyze and select answer** to capture the question, send it to the selected provider, and select the suggested choice. The extension checks the URL, question number, images, and choice order before selecting. If the question changes or the model returns no unambiguous final letter, it skips selection. Submission and navigation to the next question remain manual.
+Click **Start auto mode** to begin at the current question. It captures the exercise, calls the chosen AI, selects the answer, clicks Next, waits for a changed question, and repeats. Keep this popup open and the question tab active. **Stop** cancels the current AI request and prevents further steps; a Next request already sent cannot be undone. Closing the popup also stops further processing.
+
+The loop stops on a failed capture, provider error, incomplete response, unclear answer, changed question, unavailable Next button, or navigation timeout. On the last question recognized from this site's answer fields, the choice is marked but Next/final submission is left manual. Other page layouts may not expose a reliable last-question count. AI mistakes can be recorded by the automatic Next action; review results. Provider latency and rate limits still apply, and requests run sequentially.
 
 For a preview-first workflow, use **Capture question**, inspect the image, then **Analyze with AI**. These separate buttons do not select an answer automatically. The **AI explanation and calculations** section shows the model-generated worked explanation and final answer; it is not a record of private internal deliberation. Keep the popup open until the request finishes. Closing it discards the preview and explanation.
 
@@ -46,3 +48,5 @@ Responses now stream into the explanation panel instead of waiting for the entir
 **Low reasoning effort** is opt-in and sends `reasoning_effort: "low"`. TokenHarbor's public documentation consulted here did not confirm support for this setting on the selected model. It may be rejected or ignored; turn it off if requests fail. There is no automatic retry or provider switch.
 
 Only ordinary answer text is displayed; internal reasoning fields are not shown. Automatic selection requires a completed response, never a partial streaming answer. Streaming, truncation, JSON fallback, and optional reasoning settings have unit tests. No authenticated live latency benchmark was performed.
+
+Automation tests cover waiting through page loads without repeating the same question, cancellation, and navigation timeout. The continuous browser workflow has not been live-tested here.
