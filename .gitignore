@@ -1,0 +1,5 @@
+add-provider.py
+.env
+.env.*
+node_modules/
+*.zip
