@@ -1,16 +1,15 @@
 {
   "manifest_version": 3,
   "name": "Math Lens \u2014 AI",
-  "version": "1.7.0",
-  "description": "Explain image-based math exercises using OrcaRouter or TokenHarbor.",
+  "version": "1.8.0",
+  "description": "Explain image-based math exercises with Groq Qwen and optional automatic answer selection.",
   "permissions": [
     "activeTab",
     "scripting",
     "storage"
   ],
   "host_permissions": [
-    "https://api.orcarouter.ai/*",
-    "https://tokenharbor.ai/*"
+    "https://api.groq.com/*"
   ],
   "action": {
     "default_popup": "popup.html",

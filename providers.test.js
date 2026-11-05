@@ -1,12 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {getProvider} from './providers.js';
-test('providers use independent endpoints, models and credential slots',()=>{
- const a=getProvider('orca'),b=getProvider('tokenharbor');
- assert.equal(b.endpoint,'https://tokenharbor.ai/v1/chat/completions');
- assert.deepEqual(b.models,['deepseek-v4.1-flash:free']);
- assert.notEqual(a.endpoint,b.endpoint);
- assert.notEqual(a.keySlot,b.keySlot);
- assert.throws(()=>getProvider('unknown'));
+import {PROVIDERS,getProvider} from './providers.js';
+test('Groq is the only provider and uses the requested model',()=>{
+ assert.deepEqual(Object.keys(PROVIDERS),['groq']);
+ const p=getProvider('groq');
+ assert.equal(p.endpoint,'https://api.groq.com/openai/v1/chat/completions');
+ assert.deepEqual(p.models,['qwen/qwen3.8-27b']);
+ assert.equal(p.keySlot,'groqApiKey');
+ assert.throws(()=>getProvider('orca'));
+ assert.throws(()=>getProvider('tokenharbor'));
  assert.throws(()=>getProvider('__proto__'));
 });

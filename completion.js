@@ -1,10 +1,8 @@
 function visibleText(content) {
   return typeof content==='string'?content:Array.isArray(content)?content.filter(p=>p.type==='text').map(p=>p.text || '').join(''):'';
 }
-export function completionBody({model,messages,fast,lowReasoning}) {
-  const body={model,messages,stream:true,max_tokens:fast?2048:4096};
-  if(lowReasoning) body.reasoning_effort='low';
-  return body;
+export function completionBody({model,messages,fast}) {
+  return {model,messages,stream:true,temperature:0.6,top_p:0.95,max_completion_tokens:fast?2048:4096,reasoning_effort:'default',stop:null};
 }
 export async function readCompletion(response,onText=()=>{}) {
   if(!response.headers.get('content-type')?.includes('text/event-stream')) {

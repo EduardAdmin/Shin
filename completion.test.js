@@ -22,8 +22,10 @@ test('supports providers returning JSON despite stream request',async()=>{
  const r=await readCompletion(new Response(JSON.stringify({choices:[{message:{content:'ANSWER: C'},finish_reason:'stop'}]}),{headers:{'Content-Type':'application/json'}}));
  assert.equal(r.text,'ANSWER: C');
 });
-test('reasoning control is opt-in and output has a bounded budget',()=>{
- const a=completionBody({model:'x',messages:[],fast:true,lowReasoning:false});
- assert.equal(a.stream,true);assert.equal(a.max_tokens,2048);assert.equal('reasoning_effort' in a,false);
- assert.equal(completionBody({model:'x',messages:[],fast:false,lowReasoning:true}).reasoning_effort,'low');
+test('Groq request matches supplied parameters and bounds the output budget',()=>{
+ const a=completionBody({model:'qwen/qwen3.8-27b',messages:[],fast:true});
+ assert.equal(a.stream,true);assert.equal(a.max_completion_tokens,2048);
+ assert.equal('max_tokens' in a,false);assert.equal(a.reasoning_effort,'default');
+ assert.equal(a.temperature,0.6);assert.equal(a.top_p,0.95);assert.equal(a.stop,null);
+ assert.equal(completionBody({model:'qwen/qwen3.8-27b',messages:[],fast:false}).max_completion_tokens,4096);
 });
