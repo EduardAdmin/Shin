@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "Math Lens — AI",
+  "version": "1.3.0",
+  "description": "Explain image-based math exercises using OrcaRouter.",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://api.orcarouter.ai/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Math Lens"
+  }
+}
