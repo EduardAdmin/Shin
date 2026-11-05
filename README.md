@@ -1,19 +1,36 @@
-# Math Lens 1.3 — только OrcaRouter
+# Math Lens 1.4 — OrcaRouter
 
-Распакуй архив. Открой chrome://extensions → Режим разработчика → Загрузить распакованное расширение → папка math-lens. Для обновления замени файлы установленной папки и нажми обновление расширения.
+An English-language Chrome extension for image-based math exercises. No local model installation is required.
 
-Введи новый API-ключ OrcaRouter и выбери модель:
-- z-ai/glm-5.3-flash-free
-- deepseek/deepseek-v4.1-flash-free
+## Install or update
 
-Точные ID предоставлены пользователем. Их доступность, поддержка изображений и бесплатность не проверены. Запрос использует OpenAI-совместимый image_url с PNG data URL. Локальный сервер и установка моделей не нужны.
+Download the repository ZIP, extract it, then open `chrome://extensions`. Enable **Developer mode**, click **Load unpacked**, and select the folder containing `manifest.json`. To update an existing installation, replace the files in its folder and click its **Reload** button.
 
-Открой упражнение, где разрешена помощь. Полностью размести задание и все варианты в видимом окне, нажми «Захватить», проверь снимок и нажми «Разобрать». Держи popup открытым до завершения. Кнопка Start объединяет захват, анализ и отметку предложенного варианта. Перед выбором проверяются адрес, номер вопроса, изображения и соответствие букв вариантам. Если модель не вернула одну явную итоговую букву, выбор пропускается. Форма не отправляется и переход к следующему вопросу не выполняется. Проверяй результат. Отдельные кнопки захвата и разбора сохраняют режим без автоматического выбора.
+## Configure
 
-Изображение отправляется только в https://api.orcarouter.ai/v1/chat/completions после нажатия кнопки. Ключ хранится в chrome.storage.session до завершения сеанса браузера/отключения расширения. Ключ из переписки не встроен; отзови его и создай новый. В настройках сохраняются модель и язык. Старые настройки предыдущей версии не используются для подключения к другим сервисам.
+Enter your OrcaRouter API key and choose a model:
 
-Расширение временно захватывает видимое окно и обрезает область задания. Предпросмотр позволяет проверить, что туда не попали персональные данные или перекрывающие окна. Снимок и ответ находятся только в памяти popup. Cookie не читаются. Требуются activeTab, scripting, storage и разрешение только на api.orcarouter.ai.
+- `z-ai/glm-5.3-flash-free`
+- `deepseek/deepseek-v4.1-flash-free`
 
-Поддерживается DOM: #question-text, #question-answers, .answer-container, .answer-index. Вложенные iframe и задания больше окна не поддерживаются. При необходимости уменьши масштаб страницы. Используются видимые буквы вариантов, а не имена картинок.
+These model IDs were supplied by the user. Availability, free access, and image support have not been independently verified. Requests use the OpenAI-compatible `image_url` format with a PNG data URL. The explanation language defaults to English after this update; you can change it to Romanian or Russian.
 
-Синтаксис JS и тесты геометрии проверены. Запуск Chrome и реальные API-запросы здесь не проверялись. AI может ошибаться.
+## Use
+
+Open an exercise where AI assistance is allowed. Keep the entire question, choice images, and displayed letters visible; zoom out if needed. Close overlays covering the question.
+
+Click **Start — analyze and select answer** to capture the question, send it to OrcaRouter, and select the suggested choice. The extension checks the URL, question number, images, and choice order before selecting. If the question changes or the model returns no unambiguous final letter, it skips selection. Submission and navigation to the next question remain manual.
+
+For a preview-first workflow, use **Capture question**, inspect the image, then **Analyze with AI**. These separate buttons do not select an answer automatically. The **AI explanation and calculations** section shows the model-generated worked explanation and final answer; it is not a record of private internal deliberation. Keep the popup open until the request finishes. Closing it discards the preview and explanation.
+
+## Privacy
+
+A full viewport screenshot is briefly processed in memory and cropped to the exercise area. Only that crop is sent to `https://api.orcarouter.ai/v1/chat/completions` after you click Start or Analyze. Anything overlapping that area will also be captured, so check for personal information.
+
+The API key is stored in `chrome.storage.session`, not bundled in the extension. Model and language preferences are saved locally. Screenshots and responses remain in popup memory. Cookies are not read. Permissions are limited to `activeTab`, `scripting`, `storage`, and `api.orcarouter.ai`.
+
+## Supported pages and validation
+
+The top-level document must use `#question-text`, `#question-answers`, `.answer-container`, and `.answer-index`. Embedded iframes and questions larger than the viewport are unsupported. The extension uses displayed answer letters, not image filenames.
+
+JavaScript syntax checks and four unit tests pass. Live Chrome/API integration has not been tested in this environment. AI can misread notation or produce an incorrect answer; check the reasoning.
