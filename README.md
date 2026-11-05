@@ -1,4 +1,4 @@
-# Math Lens 1.5 — OrcaRouter + TokenHarbor
+# Math Lens 1.6 — OrcaRouter + TokenHarbor
 
 An English-language Chrome extension for image-based math exercises. No local model installation is required.
 
@@ -36,3 +36,13 @@ The API key is stored in `chrome.storage.session`, not bundled in the extension.
 The top-level document must use `#question-text`, `#question-answers`, `.answer-container`, and `.answer-index`. Embedded iframes and questions larger than the viewport are unsupported. The extension uses displayed answer letters, not image filenames.
 
 JavaScript syntax checks and five unit tests pass. Live Chrome/API integration has not been tested in this environment. AI can misread notation or produce an incorrect answer; check the reasoning.
+
+## Speed controls
+
+Responses now stream into the explanation panel instead of waiting for the entire response. A timer shows elapsed request time. Streaming improves visibility, not necessarily total model latency.
+
+**Fast mode**, enabled by default, asks for a worked explanation under 140 words and limits output to 2,048 tokens. Turning it off allows 4,096 tokens. Provider output limits may include hidden reasoning tokens; if the model exhausts its budget, no answer is selected. Faster settings can reduce accuracy.
+
+**Low reasoning effort** is opt-in and sends `reasoning_effort: "low"`. TokenHarbor's public documentation consulted here did not confirm support for this setting on the selected model. It may be rejected or ignored; turn it off if requests fail. There is no automatic retry or provider switch.
+
+Only ordinary answer text is displayed; internal reasoning fields are not shown. Automatic selection requires a completed response, never a partial streaming answer. Streaming, truncation, JSON fallback, and optional reasoning settings have unit tests. No authenticated live latency benchmark was performed.

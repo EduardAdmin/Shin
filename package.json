@@ -1,1 +1,1 @@
-{"private": true, "type": "module", "scripts": {"test": "node --test geometry.test.js answer.test.js providers.test.js"}}
+{"private": true, "type": "module", "scripts": {"test": "node --test *.test.js"}}
