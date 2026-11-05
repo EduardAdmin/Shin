@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Math Lens \u2014 AI",
-  "version": "1.8.2",
-  "description": "Explain image-based math exercises with Groq Qwen and optional automatic answer selection.",
+  "version": "1.9.0",
+  "description": "Math exercise assistant using Groq with automatic model fallback on rate limits.",
   "permissions": [
     "activeTab",
     "scripting",

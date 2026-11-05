@@ -29,3 +29,8 @@ test('Groq request matches supplied parameters and bounds the output budget',()=
  assert.equal(a.temperature,0.6);assert.equal(a.top_p,0.95);assert.equal(a.stop,null);
  assert.equal(completionBody({model:'qwen/qwen3.8-27b',messages:[],fast:false}).max_completion_tokens,4096);
 });
+
+test('GPT-OSS solver uses supported reasoning effort values',()=>{
+ assert.equal(completionBody({model:'openai/gpt-oss-120b',messages:[],fast:true}).reasoning_effort,'low');
+ assert.equal(completionBody({model:'openai/gpt-oss-20b',messages:[],fast:false}).reasoning_effort,'medium');
+});
